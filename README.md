@@ -100,13 +100,13 @@ py -m pip install pygame
 ### 3-3. 게임 실행
 
 ```powershell
-python main_with_info_readme.py
+python main.py
 ```
 
 또는
 
 ```powershell
-py main_with_info_readme.py
+py main.py
 ```
 
 ---

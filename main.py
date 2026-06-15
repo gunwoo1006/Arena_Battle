@@ -3,7 +3,104 @@ import random
 import math
 import os
 
+pygame.mixer.pre_init(44100, -16, 2, 512)
 pygame.init()
+
+# === SOUND PATCH START ===
+# 사운드 파일은 main.py와 같은 위치의 sounds 폴더에 넣으면 됩니다.
+# 파일이 없어도 게임은 멈추지 않고 조용히 실행됩니다.
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+SOUND_DIR = os.path.join(BASE_DIR, "sounds")
+SOUND_ENABLED = True
+SOUNDS = {}
+
+SOUND_FILES = {
+    "hit": "hit.wav",
+    "dodge": "dodge.wav",
+    "laser": "laser.wav",
+    "slash": "slash.wav",
+    "moon_slash": "moon_slash.wav",
+    "explosion": "explosion.wav",
+    "geonwoo_boom": "geonwoo_boom.wav",
+    "heal": "heal.wav",
+    "button": "button.wav",
+}
+
+SOUND_VOLUMES = {
+    "hit": 0.34,
+    "dodge": 0.24,
+    "laser": 0.30,
+    "slash": 0.30,
+    "moon_slash": 0.36,
+    "explosion": 0.42,
+    "geonwoo_boom": 0.52,
+    "heal": 0.30,
+    "button": 0.22,
+}
+
+
+def load_game_sounds():
+    global SOUND_ENABLED, SOUNDS
+    if not SOUND_ENABLED:
+        return
+    try:
+        if not pygame.mixer.get_init():
+            pygame.mixer.init()
+    except pygame.error:
+        SOUND_ENABLED = False
+        return
+
+    for key, filename in SOUND_FILES.items():
+        path = os.path.join(SOUND_DIR, filename)
+        if not os.path.exists(path):
+            SOUNDS[key] = None
+            continue
+        try:
+            sound = pygame.mixer.Sound(path)
+            sound.set_volume(SOUND_VOLUMES.get(key, 0.30))
+            SOUNDS[key] = sound
+        except pygame.error:
+            SOUNDS[key] = None
+
+
+def play_sound(name, volume=None):
+    if not SOUND_ENABLED:
+        return
+    sound = SOUNDS.get(name)
+    if sound is None:
+        return
+    if volume is not None:
+        sound.set_volume(volume)
+    try:
+        sound.play()
+    except pygame.error:
+        pass
+
+
+def start_bgm():
+    if not SOUND_ENABLED:
+        return
+    bgm_path = os.path.join(SOUND_DIR, "bgm.wav")
+    if not os.path.exists(bgm_path):
+        return
+    try:
+        pygame.mixer.music.load(bgm_path)
+        pygame.mixer.music.set_volume(0.18)
+        pygame.mixer.music.play(-1)
+    except pygame.error:
+        pass
+
+
+def stop_bgm():
+    if SOUND_ENABLED:
+        try:
+            pygame.mixer.music.stop()
+        except pygame.error:
+            pass
+
+load_game_sounds()
+start_bgm()
+# === SOUND PATCH END ===
 
 WIDTH, HEIGHT = 1050, 700
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -25,37 +122,37 @@ CHARACTERS = {
     "beminje": {
         "name": "민재",
         "image": "minjae.jpg",
-        "desc": "레이저와 재간둥이 회피를 사용한다.",
+        "desc": "탕치기와 재간둥이의 콤보는 막강합니다.",
     },
     "jaemin": {
         "name": "재민",
         "image": "jaemin.jpg",
-        "desc": "오오라를 뿜고 20초마다 각성한다.",
+        "desc": "23년도의 재림.",
     },
     "sungmin": {
         "name": "성민",
         "image": "sungmin.jpg",
-        "desc": "검을 들고 조준 참격과 달빛가르기를 사용한다.",
+        "desc": "세계제일의 검사가 되는 그날까지.",
     },
     "jungwoo": {
         "name": "정우",
         "image": "jungwoo.png",
-        "desc": "오른쪽에서 소를 돌진시킨다.",
+        "desc": "소의 친구.",
     },
     "suin": {
         "name": "수인",
         "image": "suin.jpg",
-        "desc": "까마귀 손아귀와 흡혈 악마화를 사용한다.",
+        "desc": "스웨인을 모티브로 만들어졌습니다.",
     },
     "iinrok2": {
         "name": "이인록2",
         "image": "sunghyun.png",
-        "desc": "배그식 사격과 회복 아이템을 사용한다.",
+        "desc": "숙련된 배틀그라운드 유저입니다.",
     },
     "gyeongsik": {
         "name": "경식",
         "image": "gski.png",
-        "desc": "해물찜을 던져 열기 장판을 남긴다.",
+        "desc": "해물찜을 던져 화상을 입힙니다.",
     },
     "geonwoo": {
         "name": "건우",
@@ -67,7 +164,7 @@ CHARACTERS = {
 
 CHARACTER_SKILL_GUIDES = {
     "beminje": [
-        "고정 레이저: 조준 후 직선 레이저를 발사해 큰 피해를 준다.",
+        "습관성 거짓말: 짧은 간격으로 탕을 칩니다.",
         "재간둥이: 일정 시간 공중으로 뛰어올라 피해를 받지 않는다.",
         "착지 충격: 재간둥이 종료 시 주변 적에게 약한 피해를 준다.",
     ],
@@ -668,6 +765,9 @@ class BlueLaser:
                 self.lock_aim()
         elif elapsed < self.aim_time + self.lock_time + self.fire_time:
             self.phase = "fire"
+            if not self.announced:
+                play_sound("laser")
+                self.announced = True
             if not self.locked:
                 self.lock_aim()
         else:
@@ -773,6 +873,7 @@ class GlobalAura:
         self.hit_targets = set()
         self.alive = True
         self.phase = "charge"
+        self.announced = False
 
     def update(self, current_time):
         elapsed = current_time - self.start_time
@@ -781,6 +882,9 @@ class GlobalAura:
             self.phase = "charge"
         elif elapsed < self.charge_time + self.fire_time:
             self.phase = "fire"
+            if not self.announced:
+                play_sound("explosion")
+                self.announced = True
         else:
             self.alive = False
 
@@ -877,6 +981,9 @@ class SwordSlash:
                 self.lock_aim()
         elif elapsed < self.aim_time + self.lock_time + self.fire_time:
             self.phase = "fire"
+            if not self.announced:
+                play_sound("slash")
+                self.announced = True
             if not self.locked:
                 self.lock_aim()
         else:
@@ -963,6 +1070,7 @@ class MoonSlash:
         self.hit_targets = set()
         self.alive = True
         self.phase = "warning"
+        self.announced = False
 
         dx, dy = caster.get_direction()
         self.angle = math.atan2(dy, dx)
@@ -975,6 +1083,9 @@ class MoonSlash:
             self.phase = "warning"
         elif elapsed < self.warning_time + self.fire_time:
             self.phase = "fire"
+            if not self.announced:
+                play_sound("moon_slash")
+                self.announced = True
         else:
             self.alive = False
 
@@ -2904,6 +3015,7 @@ def update_geonwoo_execute(ball, fighters, current_time, game_state):
         return
 
     ball.geonwoo_execute_done = True
+    play_sound("geonwoo_boom", 0.52)
     game_state["geonwoo_annihilation"] = {
         "caster": ball,
         "start_time": current_time,
