@@ -1,0 +1,7 @@
+Arena Battle 2.0.2 Hotfix
+
+- Fixed NameError: resource_path is not defined.
+- Kept image path fix from 2.0.1.
+- Kept instant restart and mouse character selection.
+- Kept Asura Geonwoo checkbox and multiplayer ranking.
+- Kept V3 BGM and V5 skill sounds.

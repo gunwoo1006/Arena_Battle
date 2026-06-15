@@ -2,47 +2,169 @@ import pygame
 import random
 import math
 import os
+import sys
 
 pygame.mixer.pre_init(44100, -16, 2, 512)
 pygame.init()
 
-# === SOUND PATCH START ===
-# 사운드 파일은 main.py와 같은 위치의 sounds 폴더에 넣으면 됩니다.
-# 파일이 없어도 게임은 멈추지 않고 조용히 실행됩니다.
+# === SOUND PATCH V5 START ===
+# V5: V3 고전 격투게임 BGM 복구 + 캐릭터별 스킬 효과음 + 우측 상단 사운드 옵션.
+# 사운드 파일이 없어도 게임은 멈추지 않고 조용히 실행됩니다.
+import json
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-SOUND_DIR = os.path.join(BASE_DIR, "sounds")
+
+
+def resource_path(relative_path):
+    """Return a usable path for local run and PyInstaller exe run."""
+    if relative_path is None:
+        return None
+
+    if os.path.isabs(relative_path):
+        return relative_path
+
+    bundle_dir = getattr(sys, "_MEIPASS", None)
+    if bundle_dir:
+        bundled_path = os.path.join(bundle_dir, relative_path)
+        if os.path.exists(bundled_path):
+            return bundled_path
+
+    return os.path.join(BASE_DIR, relative_path)
+
+
+SOUND_DIR = resource_path("sounds")
+
+
+SOUND_SETTINGS_FILE = os.path.join(BASE_DIR, "arena_sound_settings.json")
+
 SOUND_ENABLED = True
+SFX_ENABLED = True
+BGM_ENABLED = True
+SFX_VOLUME = 0.78
+BGM_VOLUME = 0.18
+SOUND_PANEL_OPEN = False
 SOUNDS = {}
 
 SOUND_FILES = {
     "hit": "hit.wav",
+    "body_hit": "body_hit.wav",
     "dodge": "dodge.wav",
+    "button": "button.wav",
+
     "laser": "laser.wav",
+    "trickster": "trickster.wav",
+    "land": "land.wav",
+
+    "aura": "aura.wav",
+    "jaemin_awaken": "jaemin_awaken.wav",
+    "jaemin_global": "jaemin_global.wav",
+    "explosion": "explosion.wav",
+
     "slash": "slash.wav",
     "moon_slash": "moon_slash.wav",
-    "explosion": "explosion.wav",
-    "geonwoo_boom": "geonwoo_boom.wav",
+
+    "cow_moo": "cow_moo.wav",
+    "cow_herd": "cow_herd.wav",
+
+    "suin_grasp": "suin_grasp.wav",
+    "suin_demon": "suin_demon.wav",
+    "suin_burst": "suin_burst.wav",
+
+    "gunshot": "gunshot.wav",
     "heal": "heal.wav",
-    "button": "button.wav",
+    "item": "item.wav",
+
+    "stew_throw": "stew_throw.wav",
+    "stew_land": "stew_land.wav",
+    "stew_ult": "stew_ult.wav",
+
+    "geonwoo_charge": "geonwoo_charge.wav",
+    "geonwoo_boom": "geonwoo_boom.wav",
 }
 
 SOUND_VOLUMES = {
-    "hit": 0.34,
-    "dodge": 0.24,
+    "hit": 0.30,
+    "body_hit": 0.22,
+    "dodge": 0.22,
+    "button": 0.20,
+
     "laser": 0.30,
-    "slash": 0.30,
-    "moon_slash": 0.36,
-    "explosion": 0.42,
-    "geonwoo_boom": 0.52,
-    "heal": 0.30,
-    "button": 0.22,
+    "trickster": 0.28,
+    "land": 0.34,
+
+    "aura": 0.16,
+    "jaemin_awaken": 0.40,
+    "jaemin_global": 0.40,
+    "explosion": 0.34,
+
+    "slash": 0.28,
+    "moon_slash": 0.46,
+
+    "cow_moo": 0.42,
+    "cow_herd": 0.44,
+
+    "suin_grasp": 0.30,
+    "suin_demon": 0.38,
+    "suin_burst": 0.42,
+
+    "gunshot": 0.26,
+    "heal": 0.28,
+    "item": 0.24,
+
+    "stew_throw": 0.23,
+    "stew_land": 0.34,
+    "stew_ult": 0.38,
+
+    "geonwoo_charge": 0.42,
+    "geonwoo_boom": 0.62,
 }
+
+
+def clamp_sound_value(value, low=0.0, high=1.0):
+    return max(low, min(high, value))
+
+
+def load_sound_settings():
+    global BGM_ENABLED, SFX_ENABLED, BGM_VOLUME, SFX_VOLUME
+
+    try:
+        if not os.path.exists(SOUND_SETTINGS_FILE):
+            return
+
+        with open(SOUND_SETTINGS_FILE, "r", encoding="utf-8") as file:
+            data = json.load(file)
+
+        BGM_ENABLED = bool(data.get("bgm_enabled", BGM_ENABLED))
+        SFX_ENABLED = bool(data.get("sfx_enabled", SFX_ENABLED))
+        BGM_VOLUME = clamp_sound_value(float(data.get("bgm_volume", BGM_VOLUME)))
+        SFX_VOLUME = clamp_sound_value(float(data.get("sfx_volume", SFX_VOLUME)))
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        pass
+
+
+def save_sound_settings():
+    data = {
+        "bgm_enabled": BGM_ENABLED,
+        "sfx_enabled": SFX_ENABLED,
+        "bgm_volume": BGM_VOLUME,
+        "sfx_volume": SFX_VOLUME,
+    }
+
+    try:
+        with open(SOUND_SETTINGS_FILE, "w", encoding="utf-8") as file:
+            json.dump(data, file, ensure_ascii=False, indent=2)
+    except OSError:
+        pass
 
 
 def load_game_sounds():
     global SOUND_ENABLED, SOUNDS
+
+    load_sound_settings()
+
     if not SOUND_ENABLED:
         return
+
     try:
         if not pygame.mixer.get_init():
             pygame.mixer.init()
@@ -52,26 +174,33 @@ def load_game_sounds():
 
     for key, filename in SOUND_FILES.items():
         path = os.path.join(SOUND_DIR, filename)
+
         if not os.path.exists(path):
             SOUNDS[key] = None
             continue
+
         try:
             sound = pygame.mixer.Sound(path)
-            sound.set_volume(SOUND_VOLUMES.get(key, 0.30))
+            sound.set_volume(SOUND_VOLUMES.get(key, 0.30) * SFX_VOLUME)
             SOUNDS[key] = sound
         except pygame.error:
             SOUNDS[key] = None
 
 
 def play_sound(name, volume=None):
-    if not SOUND_ENABLED:
+    if not SOUND_ENABLED or not SFX_ENABLED:
         return
+
     sound = SOUNDS.get(name)
+
     if sound is None:
         return
-    if volume is not None:
-        sound.set_volume(volume)
+
+    base_volume = SOUND_VOLUMES.get(name, 0.30) if volume is None else volume
+    final_volume = clamp_sound_value(base_volume * SFX_VOLUME)
+
     try:
+        sound.set_volume(final_volume)
         sound.play()
     except pygame.error:
         pass
@@ -80,13 +209,26 @@ def play_sound(name, volume=None):
 def start_bgm():
     if not SOUND_ENABLED:
         return
+
     bgm_path = os.path.join(SOUND_DIR, "bgm.wav")
+
     if not os.path.exists(bgm_path):
         return
+
     try:
         pygame.mixer.music.load(bgm_path)
-        pygame.mixer.music.set_volume(0.18)
+        pygame.mixer.music.set_volume(BGM_VOLUME if BGM_ENABLED else 0.0)
         pygame.mixer.music.play(-1)
+    except pygame.error:
+        pass
+
+
+def apply_bgm_volume():
+    if not SOUND_ENABLED:
+        return
+
+    try:
+        pygame.mixer.music.set_volume(BGM_VOLUME if BGM_ENABLED else 0.0)
     except pygame.error:
         pass
 
@@ -98,9 +240,10 @@ def stop_bgm():
         except pygame.error:
             pass
 
+
 load_game_sounds()
 start_bgm()
-# === SOUND PATCH END ===
+# === SOUND PATCH V5 END ===
 
 WIDTH, HEIGHT = 1050, 700
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -112,6 +255,132 @@ font = pygame.font.SysFont("malgungothic", 38)
 small_font = pygame.font.SysFont("malgungothic", 23)
 tiny_font = pygame.font.SysFont("malgungothic", 18)
 mini_font = pygame.font.SysFont("malgungothic", 15)
+
+
+# === SOUND OPTIONS UI V5 START ===
+def get_sound_option_rects():
+    return {
+        "button": pygame.Rect(WIDTH - 152, 12, 136, 34),
+        "panel": pygame.Rect(WIDTH - 292, 52, 276, 166),
+        "bgm_toggle": pygame.Rect(WIDTH - 274, 96, 58, 28),
+        "bgm_minus": pygame.Rect(WIDTH - 202, 96, 34, 28),
+        "bgm_plus": pygame.Rect(WIDTH - 162, 96, 34, 28),
+        "sfx_toggle": pygame.Rect(WIDTH - 274, 146, 58, 28),
+        "sfx_minus": pygame.Rect(WIDTH - 202, 146, 34, 28),
+        "sfx_plus": pygame.Rect(WIDTH - 162, 146, 34, 28),
+    }
+
+
+def draw_sound_option_button(rect, text, font_obj, bg_color, text_color=(245, 245, 245)):
+    pygame.draw.rect(screen, bg_color, rect, border_radius=8)
+    pygame.draw.rect(screen, (225, 225, 235), rect, 1, border_radius=8)
+
+    image = font_obj.render(text, True, text_color)
+    screen.blit(image, image.get_rect(center=rect.center))
+
+
+def handle_sound_options_event(event):
+    global SOUND_PANEL_OPEN, BGM_ENABLED, SFX_ENABLED, BGM_VOLUME, SFX_VOLUME
+
+    if event.type != pygame.MOUSEBUTTONDOWN or event.button != 1:
+        return False
+
+    rects = get_sound_option_rects()
+
+    if rects["button"].collidepoint(event.pos):
+        SOUND_PANEL_OPEN = not SOUND_PANEL_OPEN
+        play_sound("button", 0.22)
+        return True
+
+    if not SOUND_PANEL_OPEN:
+        return False
+
+    if not rects["panel"].collidepoint(event.pos):
+        return False
+
+    changed = False
+
+    if rects["bgm_toggle"].collidepoint(event.pos):
+        BGM_ENABLED = not BGM_ENABLED
+        changed = True
+    elif rects["sfx_toggle"].collidepoint(event.pos):
+        SFX_ENABLED = not SFX_ENABLED
+        changed = True
+    elif rects["bgm_minus"].collidepoint(event.pos):
+        BGM_VOLUME = clamp_sound_value(round(BGM_VOLUME - 0.05, 2))
+        changed = True
+    elif rects["bgm_plus"].collidepoint(event.pos):
+        BGM_VOLUME = clamp_sound_value(round(BGM_VOLUME + 0.05, 2))
+        BGM_ENABLED = True
+        changed = True
+    elif rects["sfx_minus"].collidepoint(event.pos):
+        SFX_VOLUME = clamp_sound_value(round(SFX_VOLUME - 0.05, 2))
+        changed = True
+    elif rects["sfx_plus"].collidepoint(event.pos):
+        SFX_VOLUME = clamp_sound_value(round(SFX_VOLUME + 0.05, 2))
+        SFX_ENABLED = True
+        changed = True
+
+    if changed:
+        apply_bgm_volume()
+        save_sound_settings()
+        play_sound("button", 0.16)
+        return True
+
+    return True
+
+
+def draw_sound_options_ui():
+    rects = get_sound_option_rects()
+
+    draw_sound_option_button(
+        rects["button"],
+        "SOUND",
+        mini_font,
+        (56, 56, 66) if SOUND_PANEL_OPEN else (42, 42, 50),
+        (255, 230, 90) if SOUND_PANEL_OPEN else (235, 235, 235),
+    )
+
+    if not SOUND_PANEL_OPEN:
+        return
+
+    panel = rects["panel"]
+    panel_surface = pygame.Surface((panel.width, panel.height), pygame.SRCALPHA)
+    panel_surface.fill((22, 22, 30, 232))
+    screen.blit(panel_surface, panel.topleft)
+
+    pygame.draw.rect(screen, (240, 240, 250), panel, 2, border_radius=12)
+
+    title = tiny_font.render("사운드 설정", True, (255, 255, 255))
+    screen.blit(title, (panel.x + 16, panel.y + 13))
+
+    bgm_label = mini_font.render(f"BGM  {int(BGM_VOLUME * 100)}%", True, (235, 235, 235))
+    sfx_label = mini_font.render(f"SFX  {int(SFX_VOLUME * 100)}%", True, (235, 235, 235))
+
+    screen.blit(bgm_label, (panel.x + 18, panel.y + 48))
+    screen.blit(sfx_label, (panel.x + 18, panel.y + 98))
+
+    draw_sound_option_button(
+        rects["bgm_toggle"],
+        "ON" if BGM_ENABLED else "OFF",
+        mini_font,
+        (55, 125, 70) if BGM_ENABLED else (125, 55, 55),
+    )
+    draw_sound_option_button(rects["bgm_minus"], "-", mini_font, (62, 62, 72))
+    draw_sound_option_button(rects["bgm_plus"], "+", mini_font, (62, 62, 72))
+
+    draw_sound_option_button(
+        rects["sfx_toggle"],
+        "ON" if SFX_ENABLED else "OFF",
+        mini_font,
+        (55, 125, 70) if SFX_ENABLED else (125, 55, 55),
+    )
+    draw_sound_option_button(rects["sfx_minus"], "-", mini_font, (62, 62, 72))
+    draw_sound_option_button(rects["sfx_plus"], "+", mini_font, (62, 62, 72))
+
+    guide = mini_font.render("우측 상단에서 언제든 조절", True, (175, 175, 185))
+    screen.blit(guide, (panel.x + 18, panel.bottom - 28))
+# === SOUND OPTIONS UI V5 END ===
 
 arena = pygame.Rect(80, 140, 740, 500)
 
@@ -290,6 +559,8 @@ def set_arena_for_count(player_count):
 def load_circle_image(path, diameter):
     if path is None:
         return None
+
+    path = resource_path(path)
 
     if not os.path.exists(path):
         return None
@@ -1584,21 +1855,39 @@ def draw_center_text(text, y, font_obj, color):
     screen.blit(image, rect)
 
 
-def draw_game_over_screen(winner):
+def draw_game_over_screen(winner, fighters=None, game_state=None):
+    rankings = []
+    if fighters is not None and game_state is not None:
+        rankings = get_final_rankings(fighters, game_state)
+
     overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
     overlay.fill((0, 0, 0, 185))
     screen.blit(overlay, (0, 0))
 
-    panel = pygame.Rect(WIDTH // 2 - 270, HEIGHT // 2 - 175, 540, 320)
+    if rankings:
+        panel_h = min(520, 285 + len(rankings) * 25)
+    else:
+        panel_h = 320
+
+    panel = pygame.Rect(WIDTH // 2 - 285, HEIGHT // 2 - panel_h // 2, 570, panel_h)
     pygame.draw.rect(screen, (28, 28, 34), panel, border_radius=18)
     pygame.draw.rect(screen, (255, 255, 255), panel, 3, border_radius=18)
 
-    draw_center_text("게임 종료", HEIGHT // 2 - 110, font, (255, 255, 255))
-    draw_center_text(winner, HEIGHT // 2 - 55, font, (255, 230, 90))
+    draw_center_text("게임 종료", panel.y + 55, font, (255, 255, 255))
+    draw_center_text(winner, panel.y + 100, small_font if rankings else font, (255, 230, 90))
 
-    draw_center_text("R : 메인화면으로 돌아가기", HEIGHT // 2 + 30, small_font, (210, 230, 255))
-    draw_center_text("Q 또는 ESC : 게임 종료", HEIGHT // 2 + 70, small_font, (255, 190, 190))
-    draw_center_text("메인화면에서 일반전/아수라장 모드를 다시 선택할 수 있습니다.", HEIGHT // 2 + 115, tiny_font, (220, 220, 220))
+    if rankings:
+        draw_final_rankings(fighters, game_state, panel)
+        guide_y = panel.bottom - 72
+    else:
+        guide_y = HEIGHT // 2 + 30
+
+    draw_center_text("R : 같은 캐릭터로 즉시 재시작", guide_y, small_font, (210, 230, 255))
+    draw_center_text("M : 메인화면 / Q 또는 ESC : 게임 종료", guide_y + 40, small_font, (255, 190, 190))
+
+    if not rankings:
+        draw_center_text("캐릭터를 바꾸고 싶으면 M으로 메인화면에 돌아갈 수 있습니다.", HEIGHT // 2 + 115, tiny_font, (220, 220, 220))
+
 
 def get_ray_end(x, y, dx, dy):
     candidates = []
@@ -1926,6 +2215,7 @@ def update_jaemin_awaken(ball, current_time, text_effects):
         ball.name = "각성재민"
         ball.last_aura_time = current_time - JAEMIN_AWAKENED_AURA_COOLDOWN
         text_effects.append(TextEffect("각성!", ball.x - 35, ball.y - 60, current_time, (255, 230, 80)))
+        play_sound("jaemin_awaken")
         create_hit_particles(ball.x, ball.y, current_time, (255, 230, 80), 32, 7)
 
     if ball.is_awakened and current_time - ball.awaken_start_time >= JAEMIN_AWAKEN_DURATION:
@@ -1947,6 +2237,7 @@ def update_minje_trickster(ball, current_time, fighters, text_effects):
         ball.trickster_landed = False
         ball.random_turn()
         text_effects.append(TextEffect("재간둥이!", ball.x - 55, ball.y - 65, current_time, (90, 240, 255)))
+        play_sound("trickster")
         create_hit_particles(ball.x, ball.y, current_time, (90, 240, 255), 28, 6)
         add_screen_shake(3)
 
@@ -1955,6 +2246,7 @@ def update_minje_trickster(ball, current_time, fighters, text_effects):
 
         if not ball.trickster_landed:
             ball.trickster_landed = True
+            play_sound("land")
             create_hit_particles(ball.x, ball.y, current_time, (90, 240, 255), 36, 7)
             draw_landing_damage(ball, fighters, current_time, text_effects)
             add_screen_shake(5)
@@ -2062,6 +2354,7 @@ def use_character_skills(
         if current_time - caster.last_aura_time >= aura_cooldown:
             caster.last_aura_time = current_time
             auras.append(Aura(caster, current_time))
+            play_sound("aura", 0.08 if caster.is_awakened else 0.16)
 
         already_using_global = any(global_aura.caster == caster for global_aura in global_auras)
 
@@ -2071,6 +2364,7 @@ def use_character_skills(
         ):
             caster.last_global_aura_time = current_time
             global_auras.append(GlobalAura(caster, current_time))
+            play_sound("jaemin_global")
             text_effects.append(TextEffect("맵 오오라!", caster.x - 55, caster.y - 60, current_time, (255, 130, 80)))
 
     elif caster.character_key == "sungmin":
@@ -2096,12 +2390,14 @@ def use_character_skills(
         if current_time - caster.last_cow_time >= JUNGWOO_COW_COOLDOWN and not already_using_cow:
             caster.last_cow_time = current_time
             cow_charges.append(CowCharge(caster, current_time, get_random_cow_y()))
+            play_sound("cow_moo")
             text_effects.append(TextEffect("소 돌진!", caster.x - 50, caster.y - 60, current_time, (230, 180, 90)))
 
         already_using_ult = any(cow.caster == caster and cow.is_ultimate for cow in cow_charges)
 
         if current_time - caster.last_cow_ult_time >= JUNGWOO_COW_ULT_COOLDOWN and not already_using_ult:
             caster.last_cow_ult_time = current_time
+            play_sound("cow_herd")
 
             for lane_index, lane_y in enumerate(get_ultimate_cow_lanes()):
                 cow_charges.append(
@@ -2123,6 +2419,7 @@ def use_character_skills(
         if current_time - caster.last_suin_grasp_time >= SUIN_GRASP_COOLDOWN and not already_using_grasp:
             caster.last_suin_grasp_time = current_time
             raven_grasps.append(RavenGrasp(caster, target, current_time))
+            play_sound("suin_grasp")
             text_effects.append(TextEffect("까마귀 손아귀!", caster.x - 78, caster.y - 60, current_time, (210, 80, 140)))
 
         if current_time - caster.last_suin_demon_time >= SUIN_DEMON_COOLDOWN and not caster.is_demon:
@@ -2132,6 +2429,7 @@ def use_character_skills(
             caster.last_demon_tick_time = current_time
             caster.demon_burst_done = False
             text_effects.append(TextEffect("악마화!", caster.x - 50, caster.y - 65, current_time, (190, 60, 120)))
+            play_sound("suin_demon")
             create_hit_particles(caster.x, caster.y, current_time, (160, 45, 95), 46, 8)
             add_screen_shake(6)
 
@@ -2139,12 +2437,14 @@ def use_character_skills(
         if current_time - caster.last_iinrok2_shot_time >= IINROK2_SHOT_COOLDOWN:
             caster.last_iinrok2_shot_time = current_time
             gunshots.append(GunShot(caster, target, current_time))
+            play_sound("gunshot")
             text_effects.append(TextEffect("탕!", caster.x - 20, caster.y - 58, current_time, (255, 225, 90)))
 
         if current_time - caster.last_iinrok2_item_time >= IINROK2_ITEM_COOLDOWN:
             caster.last_iinrok2_item_time = current_time
             item = choose_iinrok2_item()
             healed = caster.heal(item["heal"])
+            play_sound("item")
             text = f"{item['name']} +{healed}"
             text_effects.append(TextEffect(text, caster.x - 65, caster.y - 65, current_time, item["color"]))
             create_hit_particles(caster.x, caster.y, current_time, item["color"], 18 + healed // 2, 4)
@@ -2155,12 +2455,14 @@ def use_character_skills(
         if current_time - caster.last_gyeongsik_stew_time >= GYEONGSIK_STEW_COOLDOWN and not already_throwing:
             caster.last_gyeongsik_stew_time = current_time
             seafood_stews.append(SeafoodStew(caster, target.x, target.y, current_time))
+            play_sound("stew_throw")
             text_effects.append(TextEffect("해물찜!", caster.x - 45, caster.y - 60, current_time, (255, 130, 70)))
 
         already_ulting = any(stew.caster == caster and stew.is_ultimate for stew in seafood_stews)
 
         if current_time - caster.last_gyeongsik_ult_time >= GYEONGSIK_STEW_ULT_COOLDOWN and not already_ulting:
             caster.last_gyeongsik_ult_time = current_time
+            play_sound("stew_ult")
 
             for index, point in enumerate(get_gyeongsik_ultimate_points()):
                 seafood_stews.append(
@@ -2250,6 +2552,52 @@ def draw_menu_button(rect, text, selected, color=(255, 230, 90)):
 
 EXTREME_MODE = "asura"
 
+ASURA_INCLUDE_GEONWOO_DEFAULT = False
+
+
+def get_asura_character_order(include_geonwoo=False):
+    if include_geonwoo:
+        return CHARACTER_ORDER[:]
+
+    return [key for key in CHARACTER_ORDER if key != "geonwoo"]
+
+
+def get_asura_checkbox_rect(option_rect):
+    return pygame.Rect(option_rect.x + 18, option_rect.bottom - 40, 22, 22)
+
+
+def draw_asura_geonwoo_checkbox(option_rect, include_geonwoo, selected):
+    checkbox_rect = get_asura_checkbox_rect(option_rect)
+    box_color = (120, 255, 120) if include_geonwoo else (185, 185, 190)
+    label_color = (220, 255, 220) if include_geonwoo else (210, 210, 215)
+
+    pygame.draw.rect(screen, (28, 28, 34), checkbox_rect, border_radius=5)
+    pygame.draw.rect(screen, box_color, checkbox_rect, 2, border_radius=5)
+
+    if include_geonwoo:
+        pygame.draw.line(
+            screen,
+            (120, 255, 120),
+            (checkbox_rect.x + 5, checkbox_rect.centery),
+            (checkbox_rect.x + 10, checkbox_rect.bottom - 6),
+            3,
+        )
+        pygame.draw.line(
+            screen,
+            (120, 255, 120),
+            (checkbox_rect.x + 10, checkbox_rect.bottom - 6),
+            (checkbox_rect.right - 5, checkbox_rect.y + 5),
+            3,
+        )
+
+    label = "건우 포함" if include_geonwoo else "건우 제외"
+    if selected:
+        label += "  [G]"
+
+    label_img = mini_font.render(label, True, label_color)
+    screen.blit(label_img, (checkbox_rect.right + 8, checkbox_rect.y + 1))
+
+
 
 
 def creator_screen():
@@ -2260,6 +2608,8 @@ def creator_screen():
         mouse_pos = pygame.mouse.get_pos()
 
         for event in pygame.event.get():
+            if handle_sound_options_event(event):
+                continue
             if event.type == pygame.QUIT:
                 pygame.quit()
                 raise SystemExit
@@ -2299,6 +2649,7 @@ def creator_screen():
         draw_center_text("Enter / ESC / 클릭으로 메인화면 복귀", 540, tiny_font, (180, 180, 190))
 
         draw_menu_button(back_rect, "메인화면으로", back_rect.collidepoint(mouse_pos), (255, 230, 90))
+        draw_sound_options_ui()
         pygame.display.flip()
 
 
@@ -2315,6 +2666,8 @@ def character_info_screen():
             list_rects.append(pygame.Rect(55, 145 + idx * 66, 250, 54))
 
         for event in pygame.event.get():
+            if handle_sound_options_event(event):
+                continue
             if event.type == pygame.QUIT:
                 pygame.quit()
                 raise SystemExit
@@ -2404,6 +2757,7 @@ def character_info_screen():
             y += 24
 
         draw_menu_button(back_rect, "뒤로", back_rect.collidepoint(mouse_pos), (255, 230, 90))
+        draw_sound_options_ui()
         pygame.display.flip()
 
 
@@ -2425,6 +2779,8 @@ def main_menu():
             button_rects.append(pygame.Rect(WIDTH // 2 - 170, start_y + idx * 74, 340, 58))
 
         for event in pygame.event.get():
+            if handle_sound_options_event(event):
+                continue
             if event.type == pygame.QUIT:
                 pygame.quit()
                 raise SystemExit
@@ -2482,10 +2838,12 @@ def main_menu():
         guide = tiny_font.render("게임 시작 후 전투 인원 선택창에서 아수라장 모드도 고를 수 있습니다.", True, (180, 180, 190))
         screen.blit(guide, guide.get_rect(center=(WIDTH // 2, 620)))
 
+        draw_sound_options_ui()
         pygame.display.flip()
 
 def mode_screen():
     selected_mode = 2
+    asura_include_geonwoo = ASURA_INCLUDE_GEONWOO_DEFAULT
 
     options = [
         (2, "1대1", "작은 경기장"),
@@ -2505,6 +2863,10 @@ def mode_screen():
             rect = pygame.Rect(start_x + idx * (option_w + option_gap), 250, option_w, 170)
             option_rects.append(rect)
 
+        asura_index = [item[0] for item in options].index(EXTREME_MODE)
+        asura_rect = option_rects[asura_index]
+        asura_checkbox_rect = get_asura_checkbox_rect(asura_rect)
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -2516,10 +2878,16 @@ def mode_screen():
                         selected_mode = options[idx][0]
 
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                if asura_checkbox_rect.collidepoint(event.pos):
+                    selected_mode = EXTREME_MODE
+                    asura_include_geonwoo = not asura_include_geonwoo
+                    play_sound("button")
+                    continue
+
                 for idx, rect in enumerate(option_rects):
                     if rect.collidepoint(event.pos):
                         selected_mode = options[idx][0]
-                        return selected_mode
+                        return selected_mode, asura_include_geonwoo
 
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_2:
@@ -2530,6 +2898,9 @@ def mode_screen():
                     selected_mode = 4
                 elif event.key in [pygame.K_a, pygame.K_5]:
                     selected_mode = EXTREME_MODE
+                elif event.key == pygame.K_g and selected_mode == EXTREME_MODE:
+                    asura_include_geonwoo = not asura_include_geonwoo
+                    play_sound("button")
                 elif event.key in [pygame.K_LEFT, pygame.K_a]:
                     current_index = [item[0] for item in options].index(selected_mode)
                     selected_mode = options[(current_index - 1) % len(options)][0]
@@ -2537,13 +2908,14 @@ def mode_screen():
                     current_index = [item[0] for item in options].index(selected_mode)
                     selected_mode = options[(current_index + 1) % len(options)][0]
                 elif event.key == pygame.K_RETURN:
-                    return selected_mode
+                    return selected_mode, asura_include_geonwoo
                 elif event.key == pygame.K_ESCAPE:
                     return None
 
         screen.fill((18, 18, 22))
         draw_center_text("전투 인원 선택", 90, font, (255, 255, 255))
         draw_center_text("2 / 3 / 4 또는 A: 아수라장", 155, small_font, (220, 220, 220))
+        draw_center_text("아수라장 선택 후 G 또는 체크박스: 건우 포함/제외", 190, tiny_font, (190, 220, 190))
         draw_center_text("Enter: 선택 완료 / ESC: 메인화면", 590, small_font, (255, 255, 255))
 
         for idx, option in enumerate(options):
@@ -2557,14 +2929,16 @@ def mode_screen():
             pygame.draw.rect(screen, color, rect, 4 if selected else 2, border_radius=16)
 
             label_img = small_font.render(label, True, color)
-            screen.blit(label_img, label_img.get_rect(center=(rect.centerx, rect.centery - 28)))
+            screen.blit(label_img, label_img.get_rect(center=(rect.centerx, rect.centery - 33)))
 
             text_img = tiny_font.render(size_text, True, (230, 230, 230))
-            screen.blit(text_img, text_img.get_rect(center=(rect.centerx, rect.centery + 18)))
+            screen.blit(text_img, text_img.get_rect(center=(rect.centerx, rect.centery + 5)))
 
             if mode_value == EXTREME_MODE:
-                count_img = mini_font.render(f"{len(ASURA_CHARACTER_ORDER)}명 전원 투입", True, (255, 190, 120))
-                screen.blit(count_img, count_img.get_rect(center=(rect.centerx, rect.centery + 48)))
+                count = len(get_asura_character_order(asura_include_geonwoo))
+                count_img = mini_font.render(f"{count}명 투입", True, (255, 190, 120))
+                screen.blit(count_img, count_img.get_rect(center=(rect.centerx, rect.centery + 33)))
+                draw_asura_geonwoo_checkbox(rect, asura_include_geonwoo, selected)
 
         pygame.display.flip()
 
@@ -2583,13 +2957,77 @@ def selection_screen(player_count):
     indices = [index % len(CHARACTER_ORDER) for index in range(player_count)]
     selected_slot = 0
 
+    def make_card_rects():
+        positions, card_w, card_h = get_selection_positions(player_count)
+        return [
+            pygame.Rect(x, y, card_w, card_h)
+            for x, y in positions
+        ], positions, card_w, card_h
+
+    def get_arrow_rects(card_rect):
+        left_rect = pygame.Rect(card_rect.x + 16, card_rect.centery - 23, 42, 46)
+        right_rect = pygame.Rect(card_rect.right - 58, card_rect.centery - 23, 42, 46)
+        return left_rect, right_rect
+
+    def draw_arrow_button(rect, text, hover):
+        bg = (65, 65, 74) if hover else (44, 44, 52)
+        border = (255, 230, 90) if hover else (130, 130, 142)
+        pygame.draw.rect(screen, bg, rect, border_radius=10)
+        pygame.draw.rect(screen, border, rect, 2, border_radius=10)
+        img = small_font.render(text, True, border)
+        screen.blit(img, img.get_rect(center=rect.center))
+
+    start_rect = pygame.Rect(WIDTH // 2 - 135, 637, 270, 44)
+
     while True:
         clock.tick(60)
+        mouse_pos = pygame.mouse.get_pos()
+        card_rects, positions, card_w, card_h = make_card_rects()
 
         for event in pygame.event.get():
+            if handle_sound_options_event(event):
+                continue
             if event.type == pygame.QUIT:
                 pygame.quit()
                 raise SystemExit
+
+            if event.type == pygame.MOUSEMOTION:
+                for slot, rect in enumerate(card_rects):
+                    if rect.collidepoint(event.pos):
+                        selected_slot = slot
+
+            if event.type == pygame.MOUSEWHEEL:
+                if event.y > 0:
+                    indices[selected_slot] = (indices[selected_slot] - 1) % len(CHARACTER_ORDER)
+                    play_sound("button")
+                elif event.y < 0:
+                    indices[selected_slot] = (indices[selected_slot] + 1) % len(CHARACTER_ORDER)
+                    play_sound("button")
+
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                if start_rect.collidepoint(event.pos):
+                    play_sound("button")
+                    return [CHARACTER_ORDER[index] for index in indices]
+
+                for slot, rect in enumerate(card_rects):
+                    left_rect, right_rect = get_arrow_rects(rect)
+
+                    if left_rect.collidepoint(event.pos):
+                        selected_slot = slot
+                        indices[selected_slot] = (indices[selected_slot] - 1) % len(CHARACTER_ORDER)
+                        play_sound("button")
+                        break
+
+                    if right_rect.collidepoint(event.pos):
+                        selected_slot = slot
+                        indices[selected_slot] = (indices[selected_slot] + 1) % len(CHARACTER_ORDER)
+                        play_sound("button")
+                        break
+
+                    if rect.collidepoint(event.pos):
+                        selected_slot = slot
+                        play_sound("button")
+                        break
 
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
@@ -2623,17 +3061,16 @@ def selection_screen(player_count):
 
         mode_text = "1대1" if player_count == 2 else "1대1대1" if player_count == 3 else "1대1대1대1"
         guide1 = small_font.render(f"현재 모드: {mode_text}", True, (255, 230, 90))
-        guide2 = tiny_font.render("Tab 또는 숫자키 1~4: 선택 슬롯 변경 / A,D 또는 ←,→: 캐릭터 변경", True, (220, 220, 220))
-        guide3 = small_font.render("Enter: 경기 시작 / ESC: 인원 선택으로 돌아가기", True, (255, 255, 255))
+        guide2 = tiny_font.render("마우스: 카드 선택 / ◀ ▶ 클릭 또는 휠: 캐릭터 변경 / 키보드도 사용 가능", True, (220, 220, 220))
+        guide3 = mini_font.render("Enter 또는 경기 시작 버튼: 시작 / ESC: 인원 선택으로 돌아가기", True, (230, 230, 235))
 
         screen.blit(guide1, (70, 110))
         screen.blit(guide2, (70, 145))
-        screen.blit(guide3, (WIDTH // 2 - 210, 655))
-
-        positions, card_w, card_h = get_selection_positions(player_count)
+        screen.blit(guide3, (WIDTH // 2 - 240, 615))
 
         for slot in range(player_count):
             x, y = positions[slot]
+            rect = card_rects[slot]
             team = TEAM_INFOS[slot]
             title_text = f"{slot + 1}. {team['label']}"
 
@@ -2648,7 +3085,20 @@ def selection_screen(player_count):
                 selected_slot == slot,
             )
 
+            left_rect, right_rect = get_arrow_rects(rect)
+            draw_arrow_button(left_rect, "◀", left_rect.collidepoint(mouse_pos))
+            draw_arrow_button(right_rect, "▶", right_rect.collidepoint(mouse_pos))
+
+            if rect.collidepoint(mouse_pos):
+                hover_tip = mini_font.render("클릭: 이 슬롯 선택", True, (235, 235, 245))
+                screen.blit(hover_tip, hover_tip.get_rect(center=(rect.centerx, rect.bottom - 20)))
+
+        draw_menu_button(start_rect, "경기 시작", start_rect.collidepoint(mouse_pos), (255, 230, 90))
+
+        draw_sound_options_ui()
         pygame.display.flip()
+
+
 
 
 def create_match(character_keys):
@@ -2713,6 +3163,7 @@ def reset_match_lists():
         "text_effects": [],
         "body_hit_times": {},
         "geonwoo_annihilation": None,
+        "death_order": [],
     }
 
 
@@ -2721,13 +3172,15 @@ def choose_mode_and_characters():
         main_menu()
 
         while True:
-            selected_mode = mode_screen()
+            mode_result = mode_screen()
 
-            if selected_mode is None:
+            if mode_result is None:
                 break
 
+            selected_mode, asura_include_geonwoo = mode_result
+
             if selected_mode == EXTREME_MODE:
-                return ASURA_CHARACTER_ORDER[:]
+                return get_asura_character_order(asura_include_geonwoo)
 
             selected_keys = selection_screen(selected_mode)
 
@@ -2750,6 +3203,7 @@ def apply_body_collisions(fighters, current_time, body_hit_times):
                 last_hit_time = body_hit_times.get(pair_key, 0)
 
                 if current_time - last_hit_time >= 500:
+                    play_sound("body_hit")
                     first_dealt = second.take_damage(4, current_time)
                     second_dealt = first.take_damage(4, current_time)
                     first.damage_dealt += first_dealt
@@ -2985,6 +3439,7 @@ def update_suin_demon(ball, fighters, current_time, text_effects):
         ball.demon_burst_done = True
         ball.is_demon = False
         text_effects.append(TextEffect("악마 폭발!", ball.x - 70, ball.y - 70, current_time, (220, 70, 130)))
+        play_sound("suin_burst")
         create_hit_particles(ball.x, ball.y, current_time, (190, 50, 110), 58, 9)
         add_screen_shake(10)
 
@@ -3015,7 +3470,7 @@ def update_geonwoo_execute(ball, fighters, current_time, game_state):
         return
 
     ball.geonwoo_execute_done = True
-    play_sound("geonwoo_boom", 0.52)
+    play_sound("geonwoo_charge")
     game_state["geonwoo_annihilation"] = {
         "caster": ball,
         "start_time": current_time,
@@ -3041,6 +3496,7 @@ def update_geonwoo_annihilation(game_state, fighters, current_time):
 
     if not effect["exploded"] and current_time >= effect["explode_time"]:
         effect["exploded"] = True
+        play_sound("geonwoo_boom")
         game_state["text_effects"].append(
             TextEffect("EXECUTE: 말살", arena.centerx - 85, arena.centery - 35, current_time, (120, 255, 120))
         )
@@ -3191,6 +3647,7 @@ def update_seafood_stews(seafood_stews, heat_zones, current_time, text_effects):
                 )
             )
             text_effects.append(TextEffect("뜨거워!", stew.target_x - 40, stew.target_y - 38, current_time, (255, 150, 75)))
+            play_sound("stew_land", 0.38 if stew.is_ultimate else 0.30)
             create_hit_particles(stew.target_x, stew.target_y, current_time, (255, 125, 55), 32 if not stew.is_ultimate else 44, 7)
             add_screen_shake(5 if not stew.is_ultimate else 8)
 
@@ -3229,6 +3686,82 @@ def update_heat_zones(heat_zones, fighters, current_time, text_effects):
 
     return [zone for zone in heat_zones if zone.alive]
 
+
+def update_death_ranking(fighters, game_state, current_time):
+    if len(fighters) <= 2:
+        return
+
+    death_order = game_state.setdefault("death_order", [])
+
+    for fighter in fighters:
+        if fighter.is_alive() or fighter.fighter_id in death_order:
+            continue
+
+        death_order.append(fighter.fighter_id)
+        rank_from_bottom = len(fighters) - len(death_order) + 1
+        game_state["text_effects"].append(
+            TextEffect(
+                f"{fighter.name} {rank_from_bottom}위 확정",
+                fighter.x - 55,
+                fighter.y - 78,
+                current_time,
+                (255, 210, 120),
+            )
+        )
+
+
+def get_final_rankings(fighters, game_state):
+    if len(fighters) <= 2:
+        return []
+
+    fighter_by_id = {fighter.fighter_id: fighter for fighter in fighters}
+    death_order = list(game_state.get("death_order", []))
+    rankings = []
+
+    alive_fighters = [fighter for fighter in fighters if fighter.is_alive()]
+    for fighter in alive_fighters:
+        rankings.append(fighter)
+
+    for fighter_id in reversed(death_order):
+        fighter = fighter_by_id.get(fighter_id)
+        if fighter is not None and fighter not in rankings:
+            rankings.append(fighter)
+
+    for fighter in fighters:
+        if fighter not in rankings:
+            rankings.append(fighter)
+
+    return list(enumerate(rankings, start=1))
+
+
+def draw_final_rankings(fighters, game_state, panel):
+    rankings = get_final_rankings(fighters, game_state)
+
+    if not rankings:
+        return
+
+    title_img = small_font.render("최종 순위", True, (255, 230, 90))
+    screen.blit(title_img, title_img.get_rect(center=(panel.centerx, panel.y + 118)))
+
+    row_h = 26 if len(rankings) <= 6 else 23
+    start_y = panel.y + 146
+    row_w = 390
+    row_x = panel.centerx - row_w // 2
+
+    for rank, fighter in rankings:
+        y = start_y + (rank - 1) * row_h
+        row_rect = pygame.Rect(row_x, y, row_w, row_h - 3)
+        bg = (48, 48, 56) if rank % 2 == 1 else (39, 39, 47)
+        pygame.draw.rect(screen, bg, row_rect, border_radius=7)
+        pygame.draw.rect(screen, fighter.color, row_rect, 1, border_radius=7)
+
+        suffix = "WIN" if rank == 1 else "OUT"
+        if rank == len(rankings):
+            suffix = "꼴등"
+
+        line = f"{rank}위  {fighter.team_label} {fighter.name}  /  데미지 {fighter.damage_dealt}  /  {suffix}"
+        text_img = mini_font.render(line, True, (245, 245, 245))
+        screen.blit(text_img, (row_rect.x + 12, row_rect.y + 3))
 
 def get_winner_text(fighters):
     alive = [fighter for fighter in fighters if fighter.is_alive()]
@@ -3282,12 +3815,19 @@ def apply_screen_shake():
         screen_shake = 0
 
 
-def start_new_game():
-    global particles, screen_shake
+last_selected_keys = []
+
+
+def start_new_game(selected_keys=None):
+    global particles, screen_shake, last_selected_keys
 
     particles = []
     screen_shake = 0.0
-    selected_keys = choose_mode_and_characters()
+
+    if selected_keys is None:
+        selected_keys = choose_mode_and_characters()
+
+    last_selected_keys = selected_keys[:]
     fighters = create_match(selected_keys)
     state = reset_match_lists()
     return fighters, state
@@ -3304,13 +3844,20 @@ while running:
     current_time = pygame.time.get_ticks()
 
     for event in pygame.event.get():
+        if handle_sound_options_event(event):
+            continue
         if event.type == pygame.QUIT:
             running = False
 
         if game_over and event.type == pygame.KEYDOWN:
             if event.key == pygame.K_r:
-                particles = []
-                screen_shake = 0.0
+                # 즉시 재시작: 메인화면/선택창으로 돌아가지 않고 방금 고른 캐릭터 그대로 새 경기 시작
+                fighters, game_state = start_new_game(last_selected_keys)
+                game_over = False
+                winner = ""
+
+            if event.key == pygame.K_m:
+                # 캐릭터나 모드를 바꾸고 싶을 때만 메인화면으로 돌아가기
                 fighters, game_state = start_new_game()
                 game_over = False
                 winner = ""
@@ -3395,6 +3942,8 @@ while running:
                 game_state["text_effects"],
             )
 
+        update_death_ranking(fighters, game_state, current_time)
+
         if game_state.get("geonwoo_annihilation") is None:
             alive_count = len([fighter for fighter in fighters if fighter.is_alive()])
 
@@ -3461,9 +4010,10 @@ while running:
     game_state["text_effects"] = [text for text in game_state["text_effects"] if text.alive]
 
     if game_over:
-        draw_game_over_screen(winner)
+        draw_game_over_screen(winner, fighters, game_state)
 
     apply_screen_shake()
+    draw_sound_options_ui()
     pygame.display.flip()
 
 pygame.quit()

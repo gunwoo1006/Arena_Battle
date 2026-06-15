@@ -1,0 +1,8 @@
+Arena Battle 2.0.0
+
+- Same-character instant restart added.
+- Mouse controls added to character selection screen.
+- Asura Geonwoo checkbox retained.
+- Multi-player ranking retained.
+- Skill sounds retained.
+- V3 arcade fighting BGM retained.
