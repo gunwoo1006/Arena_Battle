@@ -1,6 +1,0 @@
-Arena Battle 2.0.1 Hotfix
-
-- Fixed missing character images in PyInstaller distribution.
-- Added resource_path() for bundled files.
-- Added PyInstaller runtime hook.
-- Build script now warns when character image files are missing.
