@@ -51,10 +51,10 @@ ArenaBattle/
 
 | 캐릭터 | 필요한 이미지 파일 |
 |---|---|
-| 민재 | `blue.jpg` |
-| 재민 | `red.jpg` |
+| 민재 | `minjae.jpg` |
+| 재민 | `jaemin.jpg` |
 | 성민 | `sungmin.jpg` |
-| 정우 | `jungwoo.jpg` |
+| 정우 | `jungwoo.png` |
 | 수인 | `suin.jpg` |
 | 이인록2 | `sunghyun.jpg` |
 | 경식 | `gski.jpg` |
