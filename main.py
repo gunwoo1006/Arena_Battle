@@ -411,7 +411,7 @@ CHARACTERS = {
     "suin": {
         "name": "수인",
         "image": "images/suin.jpg",
-        "desc": "스웨인을 모티브로 만들어졌습니다.",
+        "desc": "스웨인 원챔.",
     },
     "iinrok2": {
         "name": "이인록2",
@@ -421,7 +421,7 @@ CHARACTERS = {
     "gyeongsik": {
         "name": "경식",
         "image": "images/gski.png",
-        "desc": "해물찜을 던져 화상을 입힙니다.",
+        "desc": "해물찜을 사람한테 던지면 안돼죠.",
     },
     "geonwoo": {
         "name": "건우",
@@ -430,6 +430,16 @@ CHARACTERS = {
     },
 }
 
+CHARACTER_HP = {
+    "beminje": 120,
+    "jaemin": 130,
+    "sungmin": 100,
+    "jungwoo": 120,
+    "suin": 100,
+    "iinrok2": 100,
+    "gyeongsik": 100,
+    "geonwoo": 120,
+}
 
 CHARACTER_SKILL_GUIDES = {
     "beminje": [
@@ -453,9 +463,9 @@ CHARACTER_SKILL_GUIDES = {
         "정우 지켜잇: 정우의 친구들은 정우를 헤치지 않습니다.",
     ],
     "suin": [
-        "까마귀 손아귀: 그녀가 가장 애용하는 기술입니다.",
-        "악마화: 발동만 된다면 최강의 스킬입니다.",
-        "악마화 폭발: 여운이 남는....",
+        "까마귀 손아귀: 맞춘다면 좋은 스킬입니다.",
+        "악마화: 적절히 사용하면 아주 좋은 스킬입니다.",
+        "악마화 폭발: 하지만 맞추지 못하면 무용지물이죠",
     ],
     "iinrok2": [
         "사격개시: 그의 총알은 상대를 놓치지 않습니다.",
@@ -494,7 +504,7 @@ JAEMIN_GLOBAL_AURA_COOLDOWN = 30000
 JAEMIN_AWAKEN_INTERVAL = 20000
 JAEMIN_AWAKEN_DURATION = 5000
 
-SUNGMIN_SLASH_COOLDOWN = 750
+SUNGMIN_SLASH_COOLDOWN = 860
 SUNGMIN_MOON_SLASH_COOLDOWN = 20000
 
 JUNGWOO_COW_COOLDOWN = 5200
@@ -505,22 +515,22 @@ SUIN_GRASP_WARNING = 650
 SUIN_GRASP_FIRE_TIME = 420
 SUIN_GRASP_RADIUS = 76
 SUIN_GRASP_DAMAGE = 14
-SUIN_DEMON_COOLDOWN = 24500
+SUIN_DEMON_COOLDOWN = 22000
 SUIN_DEMON_DURATION = 5600
-SUIN_DEMON_RADIUS = 165
-SUIN_DEMON_TICK_INTERVAL = 820
-SUIN_DEMON_TICK_DAMAGE = 7
-SUIN_DEMON_HEAL = 4
+SUIN_DEMON_RADIUS = 170
+SUIN_DEMON_TICK_INTERVAL = 720
+SUIN_DEMON_TICK_DAMAGE = 6
+SUIN_DEMON_HEAL = 8
 SUIN_DEMON_BURST_DAMAGE = 18
 
 IINROK2_SHOT_COOLDOWN = 1800
-IINROK2_BULLET_SPEED = 17.0
+IINROK2_BULLET_SPEED = 18.0
 IINROK2_BULLET_DAMAGE = 11
 IINROK2_ITEM_COOLDOWN = 9000
 IINROK2_ITEM_TABLE = [
-    {"name": "에너지드링크", "heal": 7, "weight": 45, "color": (80, 210, 255)},
+    {"name": "에너지드링크", "heal": 7, "weight": 50, "color": (80, 210, 255)},
     {"name": "붕대", "heal": 14, "weight": 38, "color": (235, 235, 210)},
-    {"name": "구급상자", "heal": 32, "weight": 17, "color": (255, 85, 85)},
+    {"name": "구급상자", "heal": 26, "weight": 12, "color": (255, 85, 85)},
 ]
 
 GYEONGSIK_STEW_COOLDOWN = 4300
@@ -623,12 +633,9 @@ class Fighter:
         self.vx, self.vy = random_velocity(character_key)
         self.next_random_turn_time = random.randint(500, 1300)
 
-        if self.character_key == "geonwoo":
-            self.hp = 200
-            self.max_hp = 200
-        else:
-            self.hp = 100
-            self.max_hp = 100
+        self.hp = CHARACTER_HP.get(self.character_key, 100)
+        self.max_hp = self.hp
+        
 
         self.damage_dealt = 0
 
